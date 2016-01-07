@@ -1,0 +1,43 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using Microsoft.TeamFoundation.WorkItemTracking.Client;
+
+namespace TfsCli
+{
+    class WorkItemParserStory : WorkItemParser
+    {
+        public WorkItemParserStory(WorkItem workItem) 
+            : base(workItem)
+        {
+            if (workItem.Type.Name != "Story")
+            {
+                throw new ArgumentException("Expected WorkItem of type \"Story\" but was given one of type " + workItem.Type.ToString());
+            }
+
+            this.Mscw = workItem.Fields["Mscw"].Value.ToString();
+            this.Description = replaceSpecialCharacters(workItem.Fields["Description HTML"].Value != null && workItem.Fields["Description HTML"].Value.ToString().Length > 0 ? workItem.Fields["Description HTML"].Value.ToString() : "No Description is present");
+            this.Description = stripOutHtmlTags(this.Description);
+
+            this.AcceptanceCriteria = replaceSpecialCharacters(workItem.Fields["Acceptance Criteria"].Value != null && workItem.Fields["Acceptance Criteria"].Value.ToString().Length > 0 ? workItem.Fields["Acceptance Criteria"].Value.ToString() : "No Acceptance Criteria is present");
+            this.AcceptanceCriteria = stripOutHtmlTags(this.AcceptanceCriteria);
+
+            populateDetailedList(workItem);
+        }
+
+        protected void populateDetailedList(WorkItem workItem)
+        {
+            DetailedList.Clear();
+
+            foreach (Field field in workItem.Fields)
+            {
+                if (field.Name != "Description HTML" && field.Name != "Acceptance Criteria")
+                {
+                    Item item = new Item();
+                    item.Name = field.Name;
+                    item.Value = (field.Value == null ? string.Empty : field.Value.ToString());
+                    DetailedList.Add(item);
+                }
+            }
+        }
+    }
+}

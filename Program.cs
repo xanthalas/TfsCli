@@ -62,7 +62,14 @@ namespace TfsCli
 
             var tfsIds = extractTfsIds(args);
 
+            if (tfsIds.Count == 0)
+            {
+               tfsIds = retrievePreviousTfsIds();
+            }
+
             connectToTfs();
+
+            saveCurrentTfsIds(String.Join(" ", tfsIds));
 
             writeOutput(tfsIds);
 
@@ -164,6 +171,43 @@ namespace TfsCli
             }
 
             return numbers;
+        }
+
+        private static void saveCurrentTfsIds(string ids)
+        {
+            var outputFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TfsCli.data");
+
+            using (StreamWriter sw = new StreamWriter(outputFile))
+            {
+                sw.WriteLine(ids);
+                sw.Close();
+            }
+        }
+
+        private static List<int> retrievePreviousTfsIds()
+        {
+            var inputFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TfsCli.data");
+
+            using (StreamReader reader = new StreamReader(inputFile))
+            {
+                try
+                {
+                    string line;
+
+                    line = reader.ReadLine();           //Line 1 (Control name)
+
+                    if (line != null)
+                    {
+                        string[] values = line.Split((string[]) null, StringSplitOptions.RemoveEmptyEntries);
+                        return extractTfsIds(values);
+                    }
+                }
+                catch (Exception)
+                {
+                    //Don't do anything if the read fails
+                }
+            }
+            return new List<int>();
         }
 
         private static void connectToTfs()

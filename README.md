@@ -12,6 +12,7 @@ Usage: tfscli 12345 <options>
   * h, help       - Show help.
   * t, tasks      - Show tasks for Stories and Bugs.
   * l, links      - Show linked items
+  * y, history    - Show history
   * a, all        - Show all text (by default only the first few lines from the Description and Acceptance Criteria are shown)
   * s, summary    - Show summary only
 

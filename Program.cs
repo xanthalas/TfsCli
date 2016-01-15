@@ -1,10 +1,30 @@
-﻿using System;
+﻿/* Copyright (c) 2016 xanthalas.co.uk
+ * 
+ * Author: Xanthalas
+ * Date  : January 2016
+ * 
+ *  This file is part of TfsCli.
+ *
+ *  TfsCli is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  TfsCli is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with TfsCli.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *  Code to retrieve the history is based on the following article by Tarun Arora: 
+ *    http://geekswithblogs.net/TarunArora/archive/2011/08/21/tfs-sdk-work-item-history-visualizer-using-tfs-api.aspx
+ */
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using CommandLine;
+using System.Data;
 using CommandLine.Text;
 using Microsoft.TeamFoundation.Client;
 using Microsoft.TeamFoundation.WorkItemTracking.Client;
@@ -25,12 +45,14 @@ namespace TfsCli
         static string AcceptanceSeparator = "-----  Acceptance Criteria  -------------------------------------------------------------------------------------";
         static string tasksSeparator = "-----  Tasks  ---------------------------------------------------------------------------------------------------";
         static string linksSeparator = "-----  Links  ---------------------------------------------------------------------------------------------------";
+        static string historySeparator = "-----  History  -------------------------------------------------------------------------------------------------";
         static int maxOutputLength = 400;
         static ConsoleColor summaryColour = ConsoleColor.DarkRed;
         static ConsoleColor descriptionColour = ConsoleColor.DarkRed;
         static ConsoleColor acceptanceColour = ConsoleColor.DarkRed;
         static ConsoleColor tasksColour = ConsoleColor.DarkRed;
         static ConsoleColor linksColour = ConsoleColor.DarkRed;
+        static ConsoleColor historyColour = ConsoleColor.DarkRed;
 
         static ConsoleColor defaultColour = Console.ForegroundColor;
 
@@ -118,6 +140,10 @@ namespace TfsCli
                         {
                             getTasks(wi);
                         }
+                        if (options.ShowHistory)
+                        {
+                            generateHistory(wi);
+                        }
                         break;
 
                     case "Bug":
@@ -126,10 +152,19 @@ namespace TfsCli
                         {
                             getTasks(wi);
                         }
+                        if (options.ShowHistory)
+                        {
+                            generateHistory(wi);
+                        }
                         break;
 
                     case "Task":
                         writeOutTaskDetails(new WorkItemParserTask(wi));
+
+                        if (options.ShowHistory)
+                        {
+                            generateHistory(wi);
+                        }
                         break;
                 }
 
@@ -393,6 +428,7 @@ namespace TfsCli
                 AcceptanceSeparator = getLine(sw);
                 tasksSeparator = getLine(sw);
                 linksSeparator = getLine(sw);
+                historySeparator = getLine(sw);
                 maxOutputLength = System.Convert.ToInt32(getLine(sw));
                 
                 summaryColour = (ConsoleColor)Enum.Parse(typeof(ConsoleColor), getLine(sw));
@@ -400,6 +436,7 @@ namespace TfsCli
                 acceptanceColour = (ConsoleColor)Enum.Parse(typeof(ConsoleColor), getLine(sw));
                 tasksColour = (ConsoleColor)Enum.Parse(typeof(ConsoleColor), getLine(sw));
                 linksColour = (ConsoleColor)Enum.Parse(typeof(ConsoleColor), getLine(sw));
+                historyColour = (ConsoleColor)Enum.Parse(typeof(ConsoleColor), getLine(sw));
             }
         }
 
@@ -419,6 +456,97 @@ namespace TfsCli
             return line;
         }
 
+        private static void generateHistory(WorkItem wi)
+        {
+            Console.ForegroundColor = historyColour;
+            Console.WriteLine(historySeparator);
+
+            var dataTable = new DataTable();
+
+            foreach (Field field in wi.Fields)
+            {
+                dataTable.Columns.Add(field.Name);
+            }
+
+            // Loop through the work item revisions
+            foreach (Revision revision in wi.Revisions)
+            {
+                // Get values for the work item fields for each revision
+                var row = dataTable.NewRow();
+                foreach (Field field in wi.Fields)
+                {
+                    row[field.Name] = revision.Fields[field.Name].Value;
+                }
+                dataTable.Rows.Add(row);
+            }
+
+            // List of fields to ignore in comparison
+            var visualize = new List<string>() { "Title", "State", "Rev", "Reason", "Iteration Path", "Assigned To", "Effort", "Area Path" };
+
+
+            //Debug.Write(String.Format("Work Item: {0}{1}", wi.Id, Environment.NewLine));
+
+            List<string> output = new List<string>();
+
+            // Compare Two Work Item Revisions 
+            for (int i = 0; i < dataTable.Rows.Count; i++)
+            {
+                var currentRow = dataTable.Rows[i];
+
+                if (i + 1 < dataTable.Rows.Count)
+                {
+                    var currentRowPlus1 = dataTable.Rows[i + 1];
+
+                    //Debug.Write(String.Format("Comparing Revision {0} to {1} {2}", i, i + 1, Environment.NewLine));
+
+                    bool title = false;
+
+                    for (int j = 0; j < dataTable.Columns.Count; j++)
+                    {
+                        if (!title)
+                        {
+                            var outString = String.Format(String.Format("Changed By '{0}' On '{1}", currentRow["Changed By"].ToString(), currentRow["Changed Date"].ToString()));
+                            flushPreviousToConsole(output);
+                            output.Clear();
+                            output.Add(outString);
+                            title = true;
+                        }
+
+                        if (visualize.Contains(dataTable.Columns[j].ColumnName))
+                        {
+                            if (currentRow[j].ToString() != currentRowPlus1[j].ToString())
+                            {
+                                var outString = String.Format("[{0}]: '{1}' => '{2}'", dataTable.Columns[j].ColumnName, currentRow[j], currentRowPlus1[j]);
+
+                                if (!outString.StartsWith("[Rev]"))
+                                {
+                                    output.Add(outString);
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+        private static void flushPreviousToConsole(List<string> output)
+        {
+            if (output.Count < 2)               //If all we have is a "Changed By" then this is a revision only change so don't print anything
+            {
+                return;
+            }
+
+            foreach (var line in output)
+            {
+                Console.WriteLine(line);
+            }
+            if (output.Count > 0)
+            {
+                Console.WriteLine(" ");
+            }
+
+        }
         private static void showHelp()
         {
             HelpText ht = new HelpText("TfsCli version 0.1");

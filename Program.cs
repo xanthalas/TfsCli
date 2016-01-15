@@ -67,6 +67,7 @@ namespace TfsCli
             if (options.Help)
             {
                 showHelp();
+                return;
             }
 
             try

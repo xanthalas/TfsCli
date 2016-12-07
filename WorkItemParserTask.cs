@@ -33,7 +33,7 @@ namespace TfsCli
                 throw new ArgumentException("Expected WorkItem of type \"Task\" but was given one of type " + workItem.Type.ToString());
             }
 
-            this.Description = replaceSpecialCharacters(workItem.Fields["Description HTML"].Value != null && workItem.Fields["Description HTML"].Value.ToString().Length > 0 ? workItem.Fields["Description HTML"].Value.ToString() : "No Description is present");
+            this.Description = replaceSpecialCharacters(workItem.Fields["Description"].Value != null && workItem.Fields["Description"].Value.ToString().Length > 0 ? workItem.Fields["Description"].Value.ToString() : "No Description is present");
             this.Description = stripOutHtmlTags(this.Description);
 
             this.AcceptanceCriteria = "No Acceptance Criteria is present";

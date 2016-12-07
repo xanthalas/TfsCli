@@ -26,8 +26,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Data;
 using CommandLine.Text;
-using Microsoft.TeamFoundation.Client;
+using Microsoft.TeamFoundation.WorkItemTracking;
+
 using Microsoft.TeamFoundation.WorkItemTracking.Client;
+using Microsoft.TeamFoundation.Client;
 
 namespace TfsCli
 {
@@ -146,6 +148,41 @@ namespace TfsCli
                             generateHistory(wi);
                         }
                         break;
+                    case "Product Backlog Item":
+                        writeOutDescriptionAndAcceptanceCriteria(new WorkItemParserProductBacklogItem(wi));
+                        if (options.ShowTasks)
+                        {
+                            getTasks(wi);
+                        }
+                        if (options.ShowHistory)
+                        {
+                            generateHistory(wi);
+                        }
+                        break;
+
+                    case "Feature":
+                        writeOutDescriptionAndAcceptanceCriteria(new WorkItemParserFeature(wi));
+                        if (options.ShowTasks)
+                        {
+                            getTasks(wi);
+                        }
+                        if (options.ShowHistory)
+                        {
+                            generateHistory(wi);
+                        }
+                        break;
+
+                    case "Epic":
+                        writeOutDescriptionAndAcceptanceCriteria(new WorkItemParserEpic(wi));
+                        if (options.ShowTasks)
+                        {
+                            getTasks(wi);
+                        }
+                        if (options.ShowHistory)
+                        {
+                            generateHistory(wi);
+                        }
+                        break;
 
                     case "Bug":
                         writeOutDescriptionAndAcceptanceCriteria(new WorkItemParserBug(wi));
@@ -253,7 +290,7 @@ namespace TfsCli
                 // Connect to the server and the store, and get the WorkItemType object
                 // for user stories from the team project where the user story will be created. 
                 Uri collectionUri = new Uri(tfsUrl);
-
+                
                 TfsTeamProjectCollection tpc = new TfsTeamProjectCollection(collectionUri);
                 workItemStore = tpc.GetService<WorkItemStore>();
                 Project teamProject = workItemStore.Projects[tfsProject];
@@ -325,10 +362,16 @@ namespace TfsCli
         {
             Console.WriteLine("Activity      :" + wip.WorkItem.Fields["Activity"].Value);
             Console.WriteLine("Remaining Work:" + wip.WorkItem.Fields["Remaining Work"].Value);
+            if (wip.Description != null && wip.Description.Length > 0)
+            {
+                Console.WriteLine("Description   :");
+                Console.WriteLine(wip.Description);
+            }
         }
 
         private static void getTasks(WorkItem parent)
         {
+            
             Console.ForegroundColor = tasksColour;
 
             Console.WriteLine(tasksSeparator);
